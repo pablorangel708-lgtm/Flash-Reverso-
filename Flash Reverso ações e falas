@@ -1,0 +1,803 @@
+-- ⚡ FLASH REVERSO (Eobard Thawne) - Painel de RP
+-- LocalScript (client-side / FE). Colocar em: StarterPlayer > StarterPlayerScripts
+-- Compatível com TextChatService (novo chat) e Chat legado (SayMessageRequest).
+
+local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--------------------------------------------------------------------
+-- CONFIGURAÇÕES
+--------------------------------------------------------------------
+local INTERVALO = 3 -- segundos obrigatórios entre mensagens
+local LIMITE_CHAT = 200 -- limite de caracteres do chat do Roblox
+local PREFIXO = "———``"
+local PLACEHOLDER_NOME = "{NOME_DO_PERSONAGEM}"
+
+local PRETO = Color3.fromRGB(10, 10, 10)
+local PRETO_CLARO = Color3.fromRGB(24, 24, 24)
+local VERMELHO = Color3.fromRGB(225, 20, 20)
+local VERMELHO_ESCURO = Color3.fromRGB(110, 0, 0)
+local COR_BOTAO = Color3.fromRGB(38, 8, 8)
+local COR_BOTAO_OCUPADO = Color3.fromRGB(22, 14, 14)
+local BRANCO = Color3.fromRGB(240, 240, 240)
+local CINZA = Color3.fromRGB(180, 180, 180)
+local COR_RAIO = Color3.fromRGB(255, 30, 30)
+
+--------------------------------------------------------------------
+-- DADOS
+--------------------------------------------------------------------
+local FALAS = {
+	"Barry Allen... finalmente.",
+	"Você não pode fugir de mim.",
+	"Eu sou o Flash Reverso.",
+	"Você corre porque tem medo de mim.",
+	"Eu sempre encontro você.",
+	"Você nunca será rápido o bastante.",
+	"A diferença entre nós é que eu conheço você melhor do que você mesmo.",
+	"Você pode mudar o futuro, mas nunca poderá escapar do passado.",
+	"Eu passei anos esperando por este momento.",
+	"Vamos ver quem realmente é o homem mais rápido do mundo.",
+	"Eu sempre volto.",
+	"Sua maior fraqueza sempre foi pensar que poderia me derrotar.",
+}
+
+local function A(titulo, texto, efeito)
+	return { titulo = titulo, texto = texto, efeito = efeito }
+end
+
+local ACOES = {
+	A("Soco Supersônico", ". Flash Reverso avança em supervelocidade e desfere um poderoso soco contra {NOME_DO_PERSONAGEM} .", "ataque"),
+	A("Combo de Supervelocidade", ". Flash Reverso desfere uma sequência extremamente rápida de socos e chutes contra {NOME_DO_PERSONAGEM} .", "velocidade"),
+	A("Chute Relâmpago", ". Flash Reverso desaparece em uma explosão de raios vermelhos e reaparece diante de {NOME_DO_PERSONAGEM}, desferindo um poderoso chute .", "desaparecer"),
+	A("Ataque pelas Costas", ". Flash Reverso desaparece em supervelocidade, surge atrás de {NOME_DO_PERSONAGEM} e desfere um golpe .", "desaparecer"),
+	A("Investida Supersônica", ". Flash Reverso corre em direção a {NOME_DO_PERSONAGEM} em velocidade extrema e o atinge com uma poderosa investida .", "velocidade"),
+	A("Impacto Supersônico", ". Flash Reverso acelera rapidamente e atinge {NOME_DO_PERSONAGEM} com um forte impacto .", "ataque"),
+	A("Roubo de Velocidade", ". Flash Reverso utiliza sua conexão com a Força de Aceleração Negativa para reduzir a velocidade de {NOME_DO_PERSONAGEM} .", "poder"),
+	A("Vibração Molecular", ". Flash Reverso vibra seu corpo em uma frequência extremamente alta, atravessando o obstáculo à sua frente .", "vibracao"),
+	A("Contra-Ataque Relâmpago", ". Flash Reverso desvia do ataque de {NOME_DO_PERSONAGEM} e imediatamente contra-ataca em supervelocidade .", "velocidade"),
+	A("Tornado de Velocidade", ". Flash Reverso corre rapidamente ao redor de {NOME_DO_PERSONAGEM}, criando um poderoso tornado de velocidade .", "tornado"),
+}
+
+local PODERES = {
+	A("Supervelocidade", ". Flash Reverso utiliza sua velocidade para se mover em uma velocidade extremamente alta .", "velocidade"),
+	A("Raios Vermelhos", ". Flash Reverso libera raios vermelhos ao redor de seu corpo enquanto utiliza sua supervelocidade .", "poder"),
+	A("Pós-Imagens", ". Flash Reverso se movimenta tão rapidamente que deixa várias pós-imagens ao seu redor .", "posimagens"),
+	A("Vibração Molecular", ". Flash Reverso vibra suas moléculas em alta frequência, permitindo atravessar objetos sólidos .", "vibracao"),
+	A("Força de Aceleração Negativa", ". Flash Reverso utiliza a Força de Aceleração Negativa para aumentar sua velocidade e seus poderes .", "poder"),
+	A("Roubo de Velocidade", ". Flash Reverso utiliza a Força de Aceleração Negativa para retirar velocidade de outro velocista .", "poder"),
+	A("Reflexos Aprimorados", ". Flash Reverso reage instantaneamente aos movimentos ao seu redor .", "poder"),
+	A("Cura Acelerada", ". Flash Reverso utiliza sua conexão com a Força de Aceleração Negativa para acelerar sua recuperação .", "vibracao"),
+	A("Viagem Temporal", ". Flash Reverso utiliza sua supervelocidade para realizar uma viagem através do tempo .", "desaparecer"),
+}
+
+local MOVIMENTOS = {
+	A("Corrida Relâmpago", ". Flash Reverso começa a correr em supervelocidade, deixando um rastro de raios vermelhos .", "velocidade"),
+	A("Desaparecimento", ". Flash Reverso desaparece instantaneamente em uma explosão de raios vermelhos .", "desaparecer"),
+	A("Aparição Repentina", ". Flash Reverso surge repentinamente atrás de {NOME_DO_PERSONAGEM} em supervelocidade .", "desaparecer"),
+	A("Esquiva Supersônica", ". Flash Reverso se move rapidamente para o lado, desviando do ataque .", "posimagens"),
+	A("Corrida Circular", ". Flash Reverso corre em círculos ao redor de {NOME_DO_PERSONAGEM} em velocidade extrema .", "tornado"),
+	A("Passagem Relâmpago", ". Flash Reverso passa rapidamente ao lado de {NOME_DO_PERSONAGEM}, deixando um rastro de raios vermelhos .", "velocidade"),
+	A("Parada Instantânea", ". Flash Reverso interrompe sua corrida instantaneamente e permanece parado diante de {NOME_DO_PERSONAGEM} .", "ataque"),
+	A("Entrada do Flash Reverso", ". Flash Reverso surge em alta velocidade, cercado por raios vermelhos, e assume uma posição de combate .", "entrada"),
+}
+
+local FINAIS = {
+	A("Ataque Final", ". Flash Reverso concentra sua velocidade e avança contra {NOME_DO_PERSONAGEM}, desferindo um poderoso golpe .", "final"),
+	A("Combo Final", ". Flash Reverso desfere uma sequência extremamente rápida de golpes contra {NOME_DO_PERSONAGEM}, finalizando com um poderoso impacto .", "final"),
+	A("Impacto Máximo", ". Flash Reverso acelera ao máximo e atinge {NOME_DO_PERSONAGEM} com toda sua velocidade .", "final"),
+	A("Execução Supersônica", ". Flash Reverso desaparece em supervelocidade e surge ao redor de {NOME_DO_PERSONAGEM}, realizando uma sequência de ataques extremamente rápidos .", "final"),
+	A("Domínio da Velocidade", ". Flash Reverso utiliza sua velocidade superior para cercar {NOME_DO_PERSONAGEM} e impedir sua reação .", "tornado"),
+	A("Golpe Relâmpago Final", ". Flash Reverso concentra sua velocidade em um único ataque contra {NOME_DO_PERSONAGEM} .", "final"),
+	A("Fim da Batalha", ". Flash Reverso desfere um último golpe contra {NOME_DO_PERSONAGEM}, fazendo-o cair ao chão .", "final"),
+}
+
+-- Falas viram itens prontos: prefixo + fala (nada depois)
+local ITENS_FALAS = {}
+for _, fala in ipairs(FALAS) do
+	table.insert(ITENS_FALAS, { titulo = fala, texto = PREFIXO .. fala, efeito = nil })
+end
+
+-- Marca quais itens precisam do nome do personagem
+local function marcarNome(lista)
+	for _, item in ipairs(lista) do
+		item.precisaNome = string.find(item.texto, PLACEHOLDER_NOME, 1, true) ~= nil
+	end
+end
+marcarNome(ACOES)
+marcarNome(PODERES)
+marcarNome(MOVIMENTOS)
+marcarNome(FINAIS)
+marcarNome(ITENS_FALAS)
+
+local CATEGORIAS = {
+	{ nome = "Falas", tipo = "lista", itens = ITENS_FALAS },
+	{ nome = "Fala Personalizada", tipo = "custom" },
+	{ nome = "Ações / Ataques", tipo = "lista", itens = ACOES },
+	{ nome = "Poderes", tipo = "lista", itens = PODERES },
+	{ nome = "Movimentos", tipo = "lista", itens = MOVIMENTOS },
+	{ nome = "Acabar com a Luta", tipo = "lista", itens = FINAIS },
+}
+
+-- Presets de efeitos (todos vermelhos, leves)
+local EFEITOS = {
+	velocidade = { trail = 2.5, raios = 3, particulas = 14, flash = 0.9, fantasmas = 3, modo = "seguir" },
+	ataque = { trail = 1.5, raios = 4, particulas = 30, flash = 0.84, fantasmas = 1, modo = "seguir" },
+	desaparecer = { trail = 1.5, raios = 6, particulas = 40, flash = 0.78, fantasmas = 3, modo = "lados", afastamento = 2.5 },
+	poder = { raios = 5, particulas = 20, flash = 0.9 },
+	posimagens = { trail = 1.5, raios = 2, particulas = 10, fantasmas = 5, modo = "lados", afastamento = 2 },
+	vibracao = { raios = 3, particulas = 18, fantasmas = 4, modo = "lados", afastamento = 0.6 },
+	tornado = { trail = 3, raios = 7, particulas = 25, flash = 0.88, fantasmas = 4, modo = "lados", afastamento = 3 },
+	entrada = { trail = 2, raios = 8, particulas = 40, flash = 0.75, fantasmas = 3, modo = "lados", afastamento = 3 },
+	final = { trail = 3, raios = 8, particulas = 60, flash = 0.7, fantasmas = 4, modo = "seguir" },
+}
+
+--------------------------------------------------------------------
+-- UTILIDADES
+--------------------------------------------------------------------
+local function novo(classe, props, pai)
+	local inst = Instance.new(classe)
+	for k, v in pairs(props) do
+		inst[k] = v
+	end
+	if pai then
+		inst.Parent = pai
+	end
+	return inst
+end
+
+local function limpar(s)
+	s = string.gsub(s, "[\r\n\t]+", " ")
+	return (string.match(s, "^%s*(.-)%s*$"))
+end
+
+local function tamanhoTexto(s)
+	return utf8.len(s) or #s
+end
+
+-- Remove instâncias antigas caso o script rode de novo
+for _, nome in ipairs({ "FlashReversoRP", "FlashReversoFlash" }) do
+	local antigo = playerGui:FindFirstChild(nome)
+	if antigo then
+		antigo:Destroy()
+	end
+end
+local pastaAntiga = Workspace:FindFirstChild("FlashReversoFX")
+if pastaAntiga then
+	pastaAntiga:Destroy()
+end
+local pastaFX = novo("Folder", { Name = "FlashReversoFX" }, Workspace)
+
+--------------------------------------------------------------------
+-- ENVIO PARA O CHAT (APIs reais)
+--------------------------------------------------------------------
+local function enviarNoChat(mensagem)
+	if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+		local canais = TextChatService:FindFirstChild("TextChannels") or TextChatService:WaitForChild("TextChannels", 3)
+		local canal = canais and (canais:FindFirstChild("RBXGeneral") or canais:WaitForChild("RBXGeneral", 3))
+		if not canal then
+			return false, "canal RBXGeneral não encontrado"
+		end
+		local ok, err = pcall(function()
+			canal:SendAsync(mensagem)
+		end)
+		return ok, err
+	else
+		local eventos = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+			or ReplicatedStorage:WaitForChild("DefaultChatSystemChatEvents", 3)
+		local dizer = eventos and (eventos:FindFirstChild("SayMessageRequest") or eventos:WaitForChild("SayMessageRequest", 3))
+		if not dizer then
+			return false, "chat legado não encontrado"
+		end
+		local ok, err = pcall(function()
+			dizer:FireServer(mensagem, "All")
+		end)
+		return ok, err
+	end
+end
+
+--------------------------------------------------------------------
+-- EFEITOS VISUAIS (tudo vermelho, local, leve)
+--------------------------------------------------------------------
+local efeitosAtivos = true
+
+local guiFlash = novo("ScreenGui", {
+	Name = "FlashReversoFlash",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	DisplayOrder = 5,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, playerGui)
+
+local quadroFlash = novo("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = COR_RAIO,
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	Active = false,
+}, guiFlash)
+
+local function flashTela(transparenciaInicial)
+	quadroFlash.BackgroundTransparency = transparenciaInicial
+	TweenService:Create(quadroFlash, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 1,
+	}):Play()
+end
+
+local function emitirParticulas(raiz, quantidade)
+	local emissor = novo("ParticleEmitter", {
+		Color = ColorSequence.new(COR_RAIO),
+		LightEmission = 1,
+		Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.6),
+			NumberSequenceKeypoint.new(1, 0),
+		}),
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Lifetime = NumberRange.new(0.3, 0.6),
+		Speed = NumberRange.new(12, 25),
+		SpreadAngle = Vector2.new(180, 180),
+		Drag = 3,
+		Rate = 0,
+	}, raiz)
+	emissor:Emit(quantidade)
+	Debris:AddItem(emissor, 1.2)
+end
+
+local function criarRaio(centro)
+	local dir = Vector3.new(math.random() * 2 - 1, math.random() * 1.4 - 0.4, math.random() * 2 - 1)
+	if dir.Magnitude < 0.1 then
+		dir = Vector3.yAxis
+	end
+	dir = dir.Unit
+	local pontoAtual = centro + dir * 1.5
+	for i = 1, 4 do
+		local alvo = centro
+			+ dir * (1.5 + i * 1.3)
+			+ Vector3.new(math.random() * 1.4 - 0.7, math.random() * 1.4 - 0.7, math.random() * 1.4 - 0.7)
+		local comprimento = (alvo - pontoAtual).Magnitude
+		if comprimento > 0.05 then
+			local parte = novo("Part", {
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				CastShadow = false,
+				Material = Enum.Material.Neon,
+				Color = COR_RAIO,
+				Size = Vector3.new(0.15, 0.15, comprimento),
+				CFrame = CFrame.lookAt(pontoAtual, alvo) * CFrame.new(0, 0, -comprimento / 2),
+			}, pastaFX)
+			TweenService:Create(parte, TweenInfo.new(0.35), { Transparency = 1 }):Play()
+			Debris:AddItem(parte, 0.5)
+		end
+		pontoAtual = alvo
+	end
+end
+
+local function ligarTrail(raiz, duracao)
+	local a0 = novo("Attachment", { Position = Vector3.new(0, 1.5, 0) }, raiz)
+	local a1 = novo("Attachment", { Position = Vector3.new(0, -1.5, 0) }, raiz)
+	local trail = novo("Trail", {
+		Attachment0 = a0,
+		Attachment1 = a1,
+		Color = ColorSequence.new(Color3.fromRGB(255, 20, 20), Color3.fromRGB(120, 0, 0)),
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.1),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Lifetime = 0.5,
+		LightEmission = 1,
+		MinLength = 0.05,
+		FaceCamera = true,
+	}, raiz)
+	task.delay(duracao, function()
+		trail.Enabled = false
+		Debris:AddItem(trail, 1)
+		Debris:AddItem(a0, 1)
+		Debris:AddItem(a1, 1)
+	end)
+end
+
+local function criarFantasma(personagem, deslocamento)
+	for _, p in ipairs(personagem:GetChildren()) do
+		if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" and p.Transparency < 1 then
+			local g = novo("Part", {
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				CastShadow = false,
+				Material = Enum.Material.Neon,
+				Color = Color3.fromRGB(200, 0, 0),
+				Transparency = 0.55,
+				Size = p.Size,
+				CFrame = p.CFrame + deslocamento,
+			}, pastaFX)
+			TweenService:Create(g, TweenInfo.new(0.6), { Transparency = 1 }):Play()
+			Debris:AddItem(g, 0.8)
+		end
+	end
+end
+
+local function tocarEfeito(nome)
+	if not efeitosAtivos or not nome then
+		return
+	end
+	local cfg = EFEITOS[nome]
+	if not cfg then
+		return
+	end
+	local personagem = player.Character
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not raiz then
+		return
+	end
+
+	task.spawn(function()
+		if cfg.flash then
+			flashTela(cfg.flash)
+		end
+		if cfg.particulas then
+			emitirParticulas(raiz, cfg.particulas)
+		end
+		if cfg.trail then
+			ligarTrail(raiz, cfg.trail)
+		end
+		if cfg.raios then
+			for i = 1, cfg.raios do
+				if not raiz.Parent then
+					break
+				end
+				criarRaio(raiz.Position)
+				if i % 2 == 0 then
+					task.wait(0.04)
+				end
+			end
+		end
+		if cfg.fantasmas and cfg.fantasmas > 0 then
+			for i = 1, cfg.fantasmas do
+				if not personagem.Parent or not raiz.Parent then
+					break
+				end
+				local deslocamento = Vector3.zero
+				if cfg.modo == "lados" then
+					local lado = (i % 2 == 0) and 1 or -1
+					deslocamento = raiz.CFrame.RightVector * lado * (cfg.afastamento or 2) * math.ceil(i / 2)
+				end
+				criarFantasma(personagem, deslocamento)
+				task.wait(0.12)
+			end
+		end
+	end)
+end
+
+--------------------------------------------------------------------
+-- INTERFACE
+--------------------------------------------------------------------
+local gui = novo("ScreenGui", {
+	Name = "FlashReversoRP",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	DisplayOrder = 10,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+}, playerGui)
+
+-- Botão flutuante ⚡
+local botao = novo("TextButton", {
+	Name = "BotaoFlash",
+	Size = UDim2.fromOffset(56, 56),
+	Position = UDim2.new(0, 14, 0.45, 0),
+	BackgroundColor3 = PRETO,
+	Text = "⚡",
+	TextSize = 28,
+	Font = Enum.Font.GothamBold,
+	TextColor3 = VERMELHO,
+	AutoButtonColor = false,
+	ZIndex = 100,
+}, gui)
+novo("UICorner", { CornerRadius = UDim.new(1, 0) }, botao)
+novo("UIStroke", { Color = VERMELHO, Thickness = 2 }, botao)
+
+-- Painel (começa fechado)
+local painel = novo("Frame", {
+	Name = "Painel",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromScale(0.82, 0.85),
+	BackgroundColor3 = PRETO,
+	BorderSizePixel = 0,
+	Visible = false,
+	ClipsDescendants = true,
+	ZIndex = 1,
+}, gui)
+novo("UICorner", { CornerRadius = UDim.new(0, 12) }, painel)
+novo("UIStroke", { Color = VERMELHO, Thickness = 2 }, painel)
+novo("UISizeConstraint", { MaxSize = Vector2.new(360, 440), MinSize = Vector2.new(220, 200) }, painel)
+
+-- Cabeçalho
+novo("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(10, 4),
+	Size = UDim2.new(1, -110, 0, 26),
+	Text = "⚡ FLASH REVERSO",
+	Font = Enum.Font.GothamBlack,
+	TextSize = 16,
+	TextColor3 = VERMELHO,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, painel)
+
+local botaoFX = novo("TextButton", {
+	Position = UDim2.new(1, -92, 0, 6),
+	Size = UDim2.fromOffset(52, 22),
+	BackgroundColor3 = VERMELHO_ESCURO,
+	Text = "FX ON",
+	Font = Enum.Font.GothamBold,
+	TextSize = 11,
+	TextColor3 = BRANCO,
+}, painel)
+novo("UICorner", { CornerRadius = UDim.new(0, 6) }, botaoFX)
+
+local botaoFechar = novo("TextButton", {
+	Position = UDim2.new(1, -34, 0, 6),
+	Size = UDim2.fromOffset(26, 22),
+	BackgroundColor3 = VERMELHO_ESCURO,
+	Text = "X",
+	Font = Enum.Font.GothamBold,
+	TextSize = 12,
+	TextColor3 = BRANCO,
+}, painel)
+novo("UICorner", { CornerRadius = UDim.new(0, 6) }, botaoFechar)
+
+-- Status
+local status = novo("TextLabel", {
+	BackgroundTransparency = 1,
+	Position = UDim2.fromOffset(10, 32),
+	Size = UDim2.new(1, -20, 0, 16),
+	Text = "✅ Pronto para enviar",
+	Font = Enum.Font.Gotham,
+	TextSize = 12,
+	TextColor3 = CINZA,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+}, painel)
+
+-- Campo: Nome do personagem
+local caixaNome = novo("TextBox", {
+	Position = UDim2.fromOffset(8, 50),
+	Size = UDim2.new(1, -16, 0, 30),
+	BackgroundColor3 = PRETO_CLARO,
+	Text = "",
+	PlaceholderText = "Nome do personagem",
+	PlaceholderColor3 = Color3.fromRGB(130, 130, 130),
+	TextColor3 = BRANCO,
+	Font = Enum.Font.Gotham,
+	TextSize = 14,
+	ClearTextOnFocus = false,
+	TextXAlignment = Enum.TextXAlignment.Left,
+}, painel)
+novo("UICorner", { CornerRadius = UDim.new(0, 8) }, caixaNome)
+novo("UIStroke", { Color = VERMELHO_ESCURO, Thickness = 1 }, caixaNome)
+novo("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) }, caixaNome)
+
+-- Abas (rolagem horizontal)
+local abas = novo("ScrollingFrame", {
+	Position = UDim2.fromOffset(8, 84),
+	Size = UDim2.new(1, -16, 0, 30),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 3,
+	ScrollBarImageColor3 = VERMELHO,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.X,
+	ScrollingDirection = Enum.ScrollingDirection.X,
+}, painel)
+novo("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	Padding = UDim.new(0, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	VerticalAlignment = Enum.VerticalAlignment.Top,
+}, abas)
+
+-- Lista de opções (rolagem vertical)
+local lista = novo("ScrollingFrame", {
+	Position = UDim2.fromOffset(8, 118),
+	Size = UDim2.new(1, -16, 1, -124),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 4,
+	ScrollBarImageColor3 = VERMELHO,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+}, painel)
+novo("UIListLayout", {
+	Padding = UDim.new(0, 5),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, lista)
+novo("UIPadding", { PaddingRight = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6) }, lista)
+
+--------------------------------------------------------------------
+-- LÓGICA DE ENVIO
+--------------------------------------------------------------------
+local ocupado = false
+local botoesEnvio = {}
+local ordem = 0
+
+local function proximaOrdem()
+	ordem += 1
+	return ordem
+end
+
+local function setStatus(texto, erro)
+	status.Text = texto
+	status.TextColor3 = erro and Color3.fromRGB(255, 90, 90) or CINZA
+end
+
+local function atualizarBotoes()
+	for _, b in ipairs(botoesEnvio) do
+		if b.Parent then
+			b.TextTransparency = ocupado and 0.55 or 0
+			b.BackgroundColor3 = ocupado and COR_BOTAO_OCUPADO or COR_BOTAO
+		end
+	end
+end
+
+local function iniciarCooldown()
+	ocupado = true
+	atualizarBotoes()
+	task.spawn(function()
+		local fim = os.clock() + INTERVALO
+		while true do
+			local resto = fim - os.clock()
+			if resto <= 0 then
+				break
+			end
+			setStatus(string.format("⏳ Aguarde %.1fs para enviar outra mensagem", resto), false)
+			task.wait(0.1)
+		end
+		ocupado = false
+		atualizarBotoes()
+		setStatus("✅ Pronto para enviar", false)
+	end)
+end
+
+-- Retorna true se a mensagem foi enviada
+local function enviar(mensagem, efeito)
+	if ocupado then
+		setStatus("⏳ Aguarde o intervalo de " .. INTERVALO .. " segundos", true)
+		return false
+	end
+	ocupado = true -- bloqueia já (evita toque duplo enquanto o envio acontece)
+	local ok, err = enviarNoChat(mensagem)
+	if not ok then
+		ocupado = false
+		atualizarBotoes()
+		setStatus("❌ Falha ao enviar: " .. tostring(err), true)
+		return false
+	end
+	tocarEfeito(efeito)
+	iniciarCooldown()
+	return true
+end
+
+local function tratarItem(item)
+	if ocupado then
+		setStatus("⏳ Aguarde o intervalo de " .. INTERVALO .. " segundos", true)
+		return
+	end
+	local mensagem = item.texto
+	if item.precisaNome then
+		local nome = limpar(caixaNome.Text)
+		if nome == "" then
+			setStatus("⚠️ Digite o nome do personagem", true)
+			return
+		end
+		mensagem = (string.gsub(item.texto, PLACEHOLDER_NOME, function()
+			return nome
+		end))
+	end
+	if tamanhoTexto(mensagem) > LIMITE_CHAT then
+		setStatus("⚠️ Mensagem muito longa (máx. " .. LIMITE_CHAT .. " caracteres)", true)
+		return
+	end
+	enviar(mensagem, item.efeito)
+end
+
+--------------------------------------------------------------------
+-- CONSTRUÇÃO DAS CATEGORIAS
+--------------------------------------------------------------------
+local function criarBotaoLista(textoBotao, aoClicar)
+	local b = novo("TextButton", {
+		Size = UDim2.new(1, 0, 0, 34),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = ocupado and COR_BOTAO_OCUPADO or COR_BOTAO,
+		Text = textoBotao,
+		TextColor3 = BRANCO,
+		TextSize = 14,
+		Font = Enum.Font.GothamMedium,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTransparency = ocupado and 0.55 or 0,
+		LayoutOrder = proximaOrdem(),
+	}, lista)
+	novo("UICorner", { CornerRadius = UDim.new(0, 8) }, b)
+	novo("UIStroke", { Color = VERMELHO_ESCURO, Thickness = 1 }, b)
+	novo("UIPadding", {
+		PaddingLeft = UDim.new(0, 10),
+		PaddingRight = UDim.new(0, 10),
+		PaddingTop = UDim.new(0, 7),
+		PaddingBottom = UDim.new(0, 7),
+	}, b)
+	b.Activated:Connect(aoClicar)
+	table.insert(botoesEnvio, b)
+	return b
+end
+
+local function limparLista()
+	for _, c in ipairs(lista:GetChildren()) do
+		if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then
+			c:Destroy()
+		end
+	end
+	botoesEnvio = {}
+	ordem = 0
+	lista.CanvasPosition = Vector2.zero
+end
+
+local function montarCustom()
+	local caixa = novo("TextBox", {
+		Size = UDim2.new(1, 0, 0, 38),
+		BackgroundColor3 = PRETO_CLARO,
+		Text = "",
+		PlaceholderText = "Digite sua fala...",
+		PlaceholderColor3 = Color3.fromRGB(130, 130, 130),
+		TextColor3 = BRANCO,
+		Font = Enum.Font.Gotham,
+		TextSize = 14,
+		ClearTextOnFocus = false,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		LayoutOrder = proximaOrdem(),
+	}, lista)
+	novo("UICorner", { CornerRadius = UDim.new(0, 8) }, caixa)
+	novo("UIStroke", { Color = VERMELHO_ESCURO, Thickness = 1 }, caixa)
+	novo("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, caixa)
+
+	local enviarBtn = criarBotaoLista("ENVIAR", function()
+		if ocupado then
+			setStatus("⏳ Aguarde o intervalo de " .. INTERVALO .. " segundos", true)
+			return
+		end
+		local fala = limpar(caixa.Text)
+		if fala == "" then
+			setStatus("⚠️ Digite uma fala antes de enviar", true)
+			return
+		end
+		local mensagem = PREFIXO .. fala
+		if tamanhoTexto(mensagem) > LIMITE_CHAT then
+			setStatus("⚠️ Fala muito longa (máx. " .. (LIMITE_CHAT - tamanhoTexto(PREFIXO)) .. " caracteres)", true)
+			return
+		end
+		if enviar(mensagem, nil) then
+			caixa.Text = ""
+		end
+	end)
+	enviarBtn.TextXAlignment = Enum.TextXAlignment.Center
+	enviarBtn.Font = Enum.Font.GothamBlack
+	enviarBtn.TextColor3 = VERMELHO
+end
+
+local botoesAbas = {}
+
+local function mostrarCategoria(indice)
+	local cat = CATEGORIAS[indice]
+	limparLista()
+	for i, b in ipairs(botoesAbas) do
+		b.BackgroundColor3 = (i == indice) and VERMELHO or VERMELHO_ESCURO
+	end
+	if cat.tipo == "custom" then
+		montarCustom()
+	else
+		for _, item in ipairs(cat.itens) do
+			local rotulo = item.titulo
+			if item.precisaNome and cat.nome ~= "Falas" then
+				rotulo = rotulo .. "  👤"
+			end
+			criarBotaoLista(rotulo, function()
+				tratarItem(item)
+			end)
+		end
+	end
+end
+
+for i, cat in ipairs(CATEGORIAS) do
+	local aba = novo("TextButton", {
+		Size = UDim2.fromOffset(0, 26),
+		AutomaticSize = Enum.AutomaticSize.X,
+		BackgroundColor3 = VERMELHO_ESCURO,
+		Text = cat.nome,
+		TextColor3 = BRANCO,
+		TextSize = 13,
+		Font = Enum.Font.GothamBold,
+		LayoutOrder = i,
+	}, abas)
+	novo("UICorner", { CornerRadius = UDim.new(0, 8) }, aba)
+	novo("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, aba)
+	aba.Activated:Connect(function()
+		mostrarCategoria(i)
+	end)
+	botoesAbas[i] = aba
+end
+
+mostrarCategoria(1)
+
+--------------------------------------------------------------------
+-- BOTÕES DO CABEÇALHO
+--------------------------------------------------------------------
+botaoFX.Activated:Connect(function()
+	efeitosAtivos = not efeitosAtivos
+	botaoFX.Text = efeitosAtivos and "FX ON" or "FX OFF"
+	botaoFX.BackgroundColor3 = efeitosAtivos and VERMELHO_ESCURO or Color3.fromRGB(50, 50, 50)
+end)
+
+botaoFechar.Activated:Connect(function()
+	painel.Visible = false
+end)
+
+--------------------------------------------------------------------
+-- BOTÃO ⚡ ARRASTÁVEL (toque curto = abrir/fechar)
+--------------------------------------------------------------------
+local arrastando = false
+local moveu = false
+local inputAtivo = nil
+local inicioInput = Vector2.zero
+local inicioPos = Vector2.zero
+
+botao.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+		arrastando = true
+		moveu = false
+		inputAtivo = input
+		inicioInput = Vector2.new(input.Position.X, input.Position.Y)
+		inicioPos = botao.AbsolutePosition
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				local estavaArrastando = arrastando
+				arrastando = false
+				inputAtivo = nil
+				if estavaArrastando and not moveu then
+					painel.Visible = not painel.Visible
+				end
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not arrastando then
+		return
+	end
+	local valido = (input == inputAtivo) or (input.UserInputType == Enum.UserInputType.MouseMovement)
+	if not valido then
+		return
+	end
+	local delta = Vector2.new(input.Position.X, input.Position.Y) - inicioInput
+	if delta.Magnitude > 8 then
+		moveu = true
+	end
+	if moveu then
+		local tela = gui.AbsoluteSize
+		local x = math.clamp(inicioPos.X + delta.X, 0, math.max(0, tela.X - botao.AbsoluteSize.X))
+		local y = math.clamp(inicioPos.Y + delta.Y, 0, math.max(0, tela.Y - botao.AbsoluteSize.Y))
+		botao.Position = UDim2.fromOffset(x, y)
+	end
+end)
